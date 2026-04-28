@@ -1,0 +1,14 @@
+# FastAPI backend dependencies
+fastapi==0.109.0
+uvicorn==0.27.0
+python-dotenv==1.0.0
+
+# YouTube transcript extraction
+youtube-transcript-api==0.6.2
+
+# HTTP requests
+httpx==0.26.0
+
+# Rate limiting
+slowapi==0.1.9
+

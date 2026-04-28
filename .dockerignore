@@ -1,0 +1,8 @@
+.git
+.gitignore
+backend/venv/
+backend/__pycache__/
+backend/.env
+.env
+Dockerfile
+.dockerignore

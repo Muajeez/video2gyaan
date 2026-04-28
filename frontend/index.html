@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Video2Gyaan — AI-powered YouTube summarizer. Distill any video into a sharp, structured summary.">
+    <title>Video2Gyaan — YouTube AI Summarizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=2">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Firebase Analytics Setup -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+        import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjMlCDs1kfbTosnVxdjUNpuFwJux9D7Eg",
+            authDomain: "video2gyaan.firebaseapp.com",
+            projectId: "video2gyaan",
+            storageBucket: "video2gyaan.firebasestorage.app",
+            messagingSenderId: "866028444703",
+            appId: "1:866028444703:web:f7c1b0bb297e460074492a",
+            measurementId: "G-QQ4JGQW3S0"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        
+        // Export to window so app.js can track custom events
+        window.firebaseAnalytics = analytics;
+        window.logFirebaseEvent = logEvent;
+    </script>
+</head>
+
+<body>
+
+    <!-- Ambient background -->
+    <div class="ambient" aria-hidden="true">
+        <div class="ambient-blob blob-1"></div>
+        <div class="ambient-blob blob-2"></div>
+    </div>
+
+    <!-- Header -->
+    <header id="app-header">
+        <div class="header-row">
+            <a class="brand" href="/">
+                <div class="brand-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="23 7 16 12 23 17 23 7" />
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                    </svg>
+                </div>
+                <span class="brand-name">Video2Gyaan</span>
+            </a>
+            <nav class="header-nav">
+                <a href="#" class="nav-link">About Us</a>
+                <a href="#" class="nav-link">Privacy</a>
+                <a href="#" class="nav-link">Terms</a>
+            </nav>
+            <div class="header-actions">
+                <button id="theme-toggle" aria-label="Toggle theme">
+                    <svg id="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                    </svg>
+                    <svg id="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <main id="app-main">
+        <section class="hero">
+            <p class="hero-eyebrow">AI-Powered Summarizer</p>
+            <h1 class="hero-heading">Understand any YouTube<br>video in <span class="hero-highlight">seconds</span></h1>
+            <p class="hero-sub">Paste a link. Pick a tone. Get a complete AI summary.</p>
+        </section>
+
+        <!-- Card -->
+        <div class="card" id="main-card">
+
+            <!-- URL Input -->
+            <div class="card-field" id="url-field-group">
+                <div class="url-row">
+                    <div class="url-input-wrap">
+                        <svg class="url-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                        <input type="url" id="youtube-url" placeholder="Paste a YouTube URL..." autocomplete="off"
+                            spellcheck="false">
+                    </div>
+                    <button class="btn-go" id="btn-summarize" aria-label="Generate summary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                    </button>
+                </div>
+                <p class="field-error" id="url-error"></p>
+            </div>
+
+            <!-- Video Preview -->
+            <div class="preview" id="video-preview" style="display:none">
+                <img id="video-thumbnail" src="" alt="Thumbnail">
+                <div class="preview-text">
+                    <p id="video-title" class="preview-title">Loading...</p>
+                    <p id="video-id-display" class="preview-id"></p>
+                </div>
+            </div>
+
+            <!-- Tone Selector -->
+            <div class="tone-bar" id="tone-tabs">
+                <button class="tone-btn active" data-tone="Hook">
+                    <span class="tone-label">Hook</span>
+                </button>
+                <button class="tone-btn" data-tone="Professional">
+                    <span class="tone-label">Professional</span>
+                </button>
+                <button class="tone-btn" data-tone="Compact">
+                    <span class="tone-label">Compact</span>
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider"></div>
+
+            <!-- Loading -->
+            <div class="loader" id="loading-indicator" style="display:none">
+                <div class="loader-spinner"></div>
+                <span id="loading-text" class="loader-text">Fetching transcript...</span>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty" id="empty-state">
+                <svg class="empty-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span class="empty-text">Your summary will appear here</span>
+            </div>
+
+            <!-- Summary Output -->
+            <div class="output-header" id="output-actions" style="display:none">
+                <span class="output-label">Summary</span>
+                <button class="btn-copy" id="btn-copy">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    Copy
+                </button>
+            </div>
+            <div class="summary" id="summary-content" style="display:none"></div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer id="app-footer">
+        <div class="footer-content">
+            <p>&copy; 2026 Video2Gyaan. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Contact</a>
+                <a href="#">Twitter</a>
+                <a href="#">GitHub</a>
+            </div>
+            <p class="footer-powered">Powered by Gemini AI</p>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/app.js?v=2"></script>
+</body>
+
+</html>

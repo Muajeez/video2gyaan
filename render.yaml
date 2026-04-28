@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: video2gyaan
+    env: python
+    region: ohio # You can change this or leave it default
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # Render will ask you for this value securely
+      - key: YOUTUBE_API_KEY
+        sync: false # Render will ask you for this value securely
