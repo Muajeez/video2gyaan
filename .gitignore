@@ -50,3 +50,8 @@ backend/venv/
 backend/__pycache__/
 backend/service_account.json
 *.pyc
+
+# SQLite DB
+*.db
+*.db-shm
+*.db-wal

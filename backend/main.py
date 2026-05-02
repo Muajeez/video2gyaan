@@ -9,7 +9,9 @@ import logging
 import httpx
 import asyncio
 import secrets
+import sqlite3
 import time
+from contextlib import contextmanager
 from typing import Literal, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,11 +60,35 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-# ── In-memory share store ──────────────────────────────────────────────────────
-# Each entry: { summary_md, video_id, video_title, tone, youtube_url, created_at }
-# Max 2000 entries; oldest are evicted when limit is reached.
-_share_store: dict[str, dict] = {}
-_SHARE_MAX = 2000
+# ── SQLite share store ────────────────────────────────────────────────────────
+# On Render with a persistent disk mounted at /var/data, the DB survives
+# redeploys. Falls back to the backend directory for local dev.
+_DATA_DIR = "/var/data" if os.path.isdir("/var/data") else os.path.dirname(__file__)
+_DB_PATH = os.path.join(_DATA_DIR, "shares.db")
+
+def _get_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def _init_db():
+    """Create the shares table if it doesn't exist."""
+    with _get_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS shares (
+                share_id   TEXT PRIMARY KEY,
+                summary_md TEXT NOT NULL,
+                video_id   TEXT NOT NULL,
+                video_title TEXT NOT NULL DEFAULT 'Untitled Video',
+                tone       TEXT NOT NULL DEFAULT 'Professional',
+                youtube_url TEXT NOT NULL DEFAULT '',
+                created_at REAL NOT NULL
+            )
+        """)
+        conn.commit()
+
+_init_db()
+logger.info(f"SQLite share DB at: {_DB_PATH}")
 
 # Request models
 class SummarizeRequest(BaseModel):
@@ -228,42 +254,54 @@ def root():
 @app.post("/share")
 @limiter.limit("10/minute")
 async def create_share(request: Request, share_req: ShareRequest):
-    """Save a summary and return a shareable short ID"""
+    """Save a summary to SQLite and return a shareable short ID"""
     share_id = secrets.token_urlsafe(6)  # ~8 chars, URL-safe
-    
-    if len(_share_store) >= _SHARE_MAX:
-        # Evict the oldest entry
-        oldest_key = min(_share_store, key=lambda k: _share_store[k]["created_at"])
-        del _share_store[oldest_key]
+    now = time.time()
 
-    _share_store[share_id] = {
-        "summary_md": share_req.summary_md,
-        "video_id": share_req.video_id,
-        "video_title": share_req.video_title or "Untitled Video",
-        "tone": share_req.tone or "Professional",
-        "youtube_url": share_req.youtube_url or "",
-        "created_at": time.time(),
-    }
+    with _get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO shares (share_id, summary_md, video_id, video_title, tone, youtube_url, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                share_id,
+                share_req.summary_md,
+                share_req.video_id,
+                share_req.video_title or "Untitled Video",
+                share_req.tone or "Professional",
+                share_req.youtube_url or "",
+                now,
+            )
+        )
+        conn.commit()
+
     logger.info(f"Share created: {share_id} for video {share_req.video_id}")
     return {"share_id": share_id}
 
 
 @app.get("/api/share/{share_id}")
 async def get_share_data(share_id: str):
-    """Return share metadata as JSON (for the share page to render)"""
-    entry = _share_store.get(share_id)
-    if not entry:
-        raise HTTPException(status_code=404, detail="Share not found or expired")
-    return entry
+    """Return share metadata as JSON"""
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM shares WHERE share_id = ?", (share_id,)
+        ).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Share not found")
+    return dict(row)
 
 
 @app.get("/s/{share_id}", response_class=HTMLResponse)
 async def shared_summary_page(share_id: str):
     """Serve the beautiful standalone share page"""
-    entry = _share_store.get(share_id)
-    if not entry:
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM shares WHERE share_id = ?", (share_id,)
+        ).fetchone()
+    if not row:
         return HTMLResponse(content=_not_found_html(), status_code=404)
-    return HTMLResponse(content=_share_html(share_id, entry))
+    return HTMLResponse(content=_share_html(share_id, dict(row)))
 
 
 def _not_found_html() -> str:
