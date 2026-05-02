@@ -26,16 +26,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const outputActs   = document.getElementById('output-actions');
     const btnCopy      = document.getElementById('btn-copy');
+    const btnShare     = document.getElementById('btn-share');
 
     const emptyState   = document.getElementById('empty-state');
     const summaryEl    = document.getElementById('summary-content');
     const toast        = document.getElementById('toast');
     const historyList  = document.getElementById('history-list');
 
+    // Share modal
+    const shareOverlay    = document.getElementById('share-modal-overlay');
+    const shareClose      = document.getElementById('share-modal-close');
+    const shareLinkInput  = document.getElementById('share-link-input');
+    const btnCopyLink     = document.getElementById('btn-copy-link');
+    const shareGenerating = document.getElementById('share-generating');
+
     // --- State ---
     let currentTone    = 'Hook';
     let currentVideoId = null;
     let isGenerating   = false;
+    let currentSummaryMd = '';   // stores raw markdown of the last generated summary
+    let currentShareId   = null; // caches the share ID so clicking Share again reuses it
 
     // --- Analytics Helper ---
     function trackEvent(eventName, params = {}) {
@@ -253,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 summaryEl.innerHTML = marked.parse(summaryText);
                             } else if (data.type === 'done') {
                                 trackEvent('summary_completed', { video_id: currentVideoId, tone: currentTone });
+                                currentSummaryMd = summaryText;
+                                currentShareId = null; // reset cached share ID for new summary
                                 saveToHistory(currentVideoId, videoTitle.textContent, summaryText, url);
                             }
                         } catch (e) {}
@@ -296,6 +308,80 @@ document.addEventListener('DOMContentLoaded', () => {
         outputActs.style.display = 'flex';
         emptyState.style.display = 'none';
     }
+
+    // --- Share ---
+    function openShareModal() {
+        shareOverlay.classList.add('open');
+    }
+    function closeShareModal() {
+        shareOverlay.classList.remove('open');
+    }
+
+    shareClose.addEventListener('click', closeShareModal);
+    shareOverlay.addEventListener('click', (e) => {
+        if (e.target === shareOverlay) closeShareModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeShareModal();
+    });
+
+    btnShare.addEventListener('click', async () => {
+        if (!currentSummaryMd) return;
+
+        openShareModal();
+
+        // Reuse cached share ID if available
+        if (currentShareId) {
+            shareLinkInput.value = `${window.location.origin}/s/${currentShareId}`;
+            return;
+        }
+
+        // Show generating state
+        shareLinkInput.value = '';
+        shareGenerating.classList.add('active');
+        btnCopyLink.disabled = true;
+
+        try {
+            const res = await fetch('/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    summary_md: currentSummaryMd,
+                    video_id: currentVideoId,
+                    video_title: videoTitle.textContent,
+                    tone: currentTone,
+                    youtube_url: urlInput.value.trim()
+                })
+            });
+
+            if (!res.ok) throw new Error('Share failed');
+            const data = await res.json();
+            currentShareId = data.share_id;
+            const shareUrl = `${window.location.origin}/s/${currentShareId}`;
+            shareLinkInput.value = shareUrl;
+            trackEvent('summary_shared', { video_id: currentVideoId, share_id: currentShareId });
+        } catch (err) {
+            showToast('Could not generate share link');
+            closeShareModal();
+        } finally {
+            shareGenerating.classList.remove('active');
+            btnCopyLink.disabled = false;
+        }
+    });
+
+    btnCopyLink.addEventListener('click', () => {
+        const url = shareLinkInput.value;
+        if (!url) return;
+        navigator.clipboard.writeText(url).then(() => {
+            btnCopyLink.textContent = 'Copied!';
+            btnCopyLink.classList.add('copied');
+            setTimeout(() => {
+                btnCopyLink.textContent = 'Copy';
+                btnCopyLink.classList.remove('copied');
+            }, 2000);
+            showToast('Share link copied! 🎉');
+        }).catch(() => showToast('Copy failed'));
+    });
 
     // --- Copy ---
     btnCopy.addEventListener('click', () => {

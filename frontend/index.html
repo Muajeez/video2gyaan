@@ -176,14 +176,27 @@
                     <!-- Summary Output -->
                     <div class="output-header" id="output-actions" style="display:none">
                         <span class="output-label">Summary</span>
-                        <button class="btn-copy" id="btn-copy">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                            Copy
-                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-copy" id="btn-copy">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                                Copy
+                            </button>
+                            <button class="btn-copy" id="btn-share">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="18" cy="5" r="3"/>
+                                    <circle cx="6" cy="12" r="3"/>
+                                    <circle cx="18" cy="19" r="3"/>
+                                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                                Share
+                            </button>
+                        </div>
                     </div>
                     <div class="summary" id="summary-content" style="display:none"></div>
 
@@ -220,7 +233,45 @@
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <script src="/static/app.js?v=2"></script>
+    <!-- Share Modal -->
+    <div class="share-modal-overlay" id="share-modal-overlay">
+        <div class="share-modal" id="share-modal">
+            <div class="share-modal-header">
+                <div class="share-modal-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="share-modal-title">Share this Gyaan</h3>
+                    <p class="share-modal-sub">Anyone with the link can read this summary</p>
+                </div>
+                <button class="share-modal-close" id="share-modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="share-modal-body">
+                <div class="share-link-row">
+                    <span class="share-link-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                    </span>
+                    <input type="text" id="share-link-input" class="share-link-input" readonly>
+                    <button class="btn-copy-link" id="btn-copy-link">Copy</button>
+                </div>
+                <div class="share-modal-generating" id="share-generating">
+                    <div class="loader-spinner" style="width:16px;height:16px;border-width:2px;"></div>
+                    <span>Generating link...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=3"></script>
 </body>
 
 </html>

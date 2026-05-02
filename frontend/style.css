@@ -723,6 +723,158 @@ body {
     to   { opacity: 1; }
 }
 
+/* --- Share Modal --- */
+.share-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+.share-modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+}
+.share-modal {
+    width: 100%;
+    max-width: 480px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transform: translateY(16px) scale(0.97);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.share-modal-overlay.open .share-modal {
+    transform: translateY(0) scale(1);
+}
+.share-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.share-modal-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent-dim);
+    border-radius: var(--radius-xs);
+    color: var(--accent);
+}
+.share-modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+    letter-spacing: -0.3px;
+}
+.share-modal-sub {
+    font-size: 12px;
+    color: var(--text-2);
+}
+.share-modal-close {
+    margin-left: auto;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-xs);
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    transition: background 0.2s, color 0.2s;
+}
+.share-modal-close:hover {
+    background: var(--card-hover);
+    color: var(--text);
+}
+.share-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.share-link-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--input-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+.share-link-row:focus-within {
+    border-color: var(--accent);
+}
+.share-link-icon {
+    padding: 0 12px;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.share-link-input {
+    flex: 1;
+    padding: 12px 4px;
+    font-size: 13px;
+    font-family: monospace;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    outline: none;
+    cursor: text;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.btn-copy-link {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--font);
+    background: var(--accent-solid);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    flex-shrink: 0;
+}
+.btn-copy-link:hover { opacity: 0.85; }
+.btn-copy-link.copied {
+    background: var(--success);
+}
+.share-modal-generating {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-2);
+    padding: 4px 0;
+}
+.share-modal-generating.active {
+    display: flex;
+}
+
 /* --- Responsive --- */
 @media (max-width: 900px) {
     .main-layout { flex-direction: column; align-items: center; }
