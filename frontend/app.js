@@ -18,7 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoTitle   = document.getElementById('video-title');
     const videoIdEl    = document.getElementById('video-id-display');
 
-    const toneTabs     = document.querySelectorAll('.tone-btn');
+    // Drawer Elements
+    const drawerToggle = document.getElementById('drawer-toggle');
+    const selLanguage  = document.getElementById('sel-language');
+    const chipTones    = document.querySelectorAll('#chip-tone .chip');
+    const chipPlatforms = document.querySelectorAll('#chip-platform .chip');
+
     const btnGo        = document.getElementById('btn-summarize');
 
     const loadingEl    = document.getElementById('loading-indicator');
@@ -41,11 +46,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareGenerating = document.getElementById('share-generating');
 
     // --- State ---
-    let currentTone    = 'Hook';
     let currentVideoId = null;
     let isGenerating   = false;
-    let currentSummaryMd = '';   // stores raw markdown of the last generated summary
-    let currentShareId   = null; // caches the share ID so clicking Share again reuses it
+    let currentSummaryMd = '';   
+    let currentShareId   = null; 
+    
+    let generationConfig = {
+        language: 'English',
+        tone: 'Professional 💼',
+        platform: 'Summary'
+    };
 
     // --- Analytics Helper ---
     function trackEvent(eventName, params = {}) {
@@ -136,16 +146,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTheme();
 
-    // --- Tones ---
-    toneTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            if (isGenerating) return;
-            toneTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            currentTone = tab.dataset.tone;
-            trackEvent('tone_changed', { tone: currentTone });
-        });
+    // --- Drawer & Customization ---
+    drawerToggle.addEventListener('click', () => {
+        const expanded = drawerToggle.getAttribute('aria-expanded') === 'true';
+        drawerToggle.setAttribute('aria-expanded', !expanded);
+        trackEvent('drawer_toggled', { expanded: !expanded });
     });
+
+    selLanguage.addEventListener('change', (e) => {
+        generationConfig.language = e.target.value;
+        trackEvent('language_changed', { language: generationConfig.language });
+    });
+
+    function setupChips(chips, configKey) {
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                if (isGenerating) return;
+                chips.forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                generationConfig[configKey] = chip.dataset.val;
+                trackEvent(`${configKey}_changed`, { value: generationConfig[configKey] });
+            });
+        });
+    }
+
+    setupChips(chipTones, 'tone');
+    setupChips(chipPlatforms, 'platform');
 
     // --- URL Parsing ---
     function extractVideoId(url) {
@@ -214,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!url)           { showErr('Please enter a YouTube URL'); return; }
         if (!currentVideoId){ showErr('Invalid YouTube URL'); return; }
 
-        trackEvent('summary_requested', { video_id: currentVideoId, tone: currentTone });
+        trackEvent('summary_requested', { video_id: currentVideoId, config: generationConfig });
         begin();
 
         try {
@@ -223,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res  = await fetch('/summarize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ youtube_url: url, tone: currentTone })
+                body: JSON.stringify({ youtube_url: url, generationConfig: generationConfig })
             });
 
             if (!res.ok) {
@@ -262,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 summaryText += `\n\n**Error:** ${data.detail}`;
                                 summaryEl.innerHTML = marked.parse(summaryText);
                             } else if (data.type === 'done') {
-                                trackEvent('summary_completed', { video_id: currentVideoId, tone: currentTone });
+                                trackEvent('summary_completed', { video_id: currentVideoId, config: generationConfig });
                                 currentSummaryMd = summaryText;
                                 currentShareId = null; // reset cached share ID for new summary
                                 saveToHistory(currentVideoId, videoTitle.textContent, summaryText, url);
@@ -349,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     summary_md: currentSummaryMd,
                     video_id: currentVideoId,
                     video_title: videoTitle.textContent,
-                    tone: currentTone,
+                    tone: generationConfig.tone,
                     youtube_url: urlInput.value.trim()
                 })
             });
@@ -390,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.clipboard.writeText(t)
             .then(() => {
                 showToast('Copied to clipboard');
-                trackEvent('summary_copied', { video_id: currentVideoId, tone: currentTone });
+                trackEvent('summary_copied', { video_id: currentVideoId });
             })
             .catch(() => showToast('Copy failed'));
     });

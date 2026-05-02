@@ -109,26 +109,66 @@
 
                     <!-- URL Input -->
                     <div class="card-field" id="url-field-group">
-                        <div class="url-row">
-                            <div class="url-input-wrap">
-                                <svg class="url-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                </svg>
-                                <input type="url" id="youtube-url" placeholder="Paste a YouTube URL..." autocomplete="off"
-                                    spellcheck="false">
-                            </div>
-                            <button class="btn-go" id="btn-summarize" aria-label="Generate summary">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                    <polyline points="12 5 19 12 12 19" />
-                                </svg>
-                            </button>
+                        <div class="url-input-wrap">
+                            <svg class="url-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                            <input type="url" id="youtube-url" placeholder="Paste a YouTube URL..." autocomplete="off" spellcheck="false">
                         </div>
                         <p class="field-error" id="url-error"></p>
                     </div>
+
+                    <!-- Customization Drawer -->
+                    <div class="customization-drawer">
+                        <button class="drawer-toggle" id="drawer-toggle" aria-expanded="false">
+                            <span>Advanced Options</span>
+                            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </button>
+                        <div class="drawer-content" id="drawer-content">
+                            <div class="drawer-grid">
+                                <div class="drawer-col">
+                                    <label class="drawer-label">Output Language</label>
+                                    <select id="sel-language" class="drawer-select">
+                                        <option value="English">English</option>
+                                        <option value="Hinglish">Hinglish</option>
+                                        <option value="Hindi">Hindi</option>
+                                        <option value="Spanish">Spanish</option>
+                                    </select>
+                                </div>
+                                <div class="drawer-col">
+                                    <label class="drawer-label">Vibe</label>
+                                    <div class="chip-group" id="chip-tone">
+                                        <button class="chip active" data-val="Professional 💼">Professional 💼</button>
+                                        <button class="chip" data-val="Viral/Hook 🚀">Viral/Hook 🚀</button>
+                                        <button class="chip" data-val="Educational 🎓">Educational 🎓</button>
+                                        <button class="chip" data-val="Funny/Snarky 🎭">Funny/Snarky 🎭</button>
+                                    </div>
+                                </div>
+                                <div class="drawer-col">
+                                    <label class="drawer-label">Format For</label>
+                                    <div class="chip-group" id="chip-platform">
+                                        <button class="chip active" data-val="Summary">📄 Summary</button>
+                                        <button class="chip" data-val="LinkedIn">💼 LinkedIn</button>
+                                        <button class="chip" data-val="Twitter/X">🐦 Twitter/X</button>
+                                        <button class="chip" data-val="YouTube Script">▶️ YouTube Script</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button class="btn-generate-large" id="btn-summarize" aria-label="Generate summary">
+                        <span>Generate Summary</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </button>
 
                     <!-- Video Preview -->
                     <div class="preview" id="video-preview" style="display:none">
@@ -137,19 +177,6 @@
                             <p id="video-title" class="preview-title">Loading...</p>
                             <p id="video-id-display" class="preview-id"></p>
                         </div>
-                    </div>
-
-                    <!-- Tone Selector -->
-                    <div class="tone-bar" id="tone-tabs">
-                        <button class="tone-btn active" data-tone="Hook">
-                            <span class="tone-label">Hook</span>
-                        </button>
-                        <button class="tone-btn" data-tone="Professional">
-                            <span class="tone-label">Professional</span>
-                        </button>
-                        <button class="tone-btn" data-tone="Compact">
-                            <span class="tone-label">Compact</span>
-                        </button>
                     </div>
 
                     <!-- Divider -->

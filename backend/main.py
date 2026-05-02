@@ -97,16 +97,21 @@ def _init_db():
 _init_db()
 logger.info(f"SQLite share DB at: {_DB_PATH}")
 
+class GenerationConfig(BaseModel):
+    language: str = "English"
+    tone: str = "Professional 💼"
+    platform: str = "Summary"
+
 # Request models
 class SummarizeRequest(BaseModel):
     youtube_url: str
-    tone: Literal["Hook", "Professional", "Compact"]
+    generationConfig: GenerationConfig
 
 class ShareRequest(BaseModel):
     summary_md: str
     video_id: str
     video_title: Optional[str] = "Untitled Video"
-    tone: Optional[str] = "Professional"
+    tone: Optional[str] = "Professional 💼"
     youtube_url: Optional[str] = ""
 
 
@@ -189,7 +194,7 @@ async def get_video_info(video_id: str) -> dict:
 MAX_TRANSCRIPT_CHARS = 120000
 
 
-async def generate_summary_stream_with_gemini(transcript: str, tone: str):
+async def generate_summary_stream_with_gemini(transcript: str, config: GenerationConfig):
     """Generate summary using Gemini AI via API Key, yielding stream chunks"""
     if not GEMINI_API_KEY:
         raise HTTPException(
@@ -202,12 +207,21 @@ async def generate_summary_stream_with_gemini(transcript: str, tone: str):
         logger.warning(f"Transcript truncated from {len(transcript)} to {MAX_TRANSCRIPT_CHARS} chars")
         transcript = transcript[:MAX_TRANSCRIPT_CHARS] + "\n\n[Transcript truncated due to length]"
     
+    # Map the front-end tone to a base tone in TONE_PROMPTS
+    base_tone = "Professional"
+    if "Hook" in config.tone or "Viral" in config.tone:
+        base_tone = "Hook"
+    elif "Compact" in config.tone:
+        base_tone = "Compact"
+        
     prompt = f"""
+Act as a {config.platform} expert. Summarize this video in {config.tone} tone using {config.language}.
+
 You are an expert AI assistant. Based on the transcript/text below, perform the following task EXACTLY as instructed.
 Do NOT add any extra commentary, introduction, or summary unless explicitly asked for in the instructions.
 
 Instructions:
-{TONE_PROMPTS.get(tone, TONE_PROMPTS['Professional'])}
+{TONE_PROMPTS.get(base_tone, TONE_PROMPTS['Professional'])}
 
 Transcript/Text:
 {transcript}
@@ -582,7 +596,7 @@ async def summarize(request: Request, summarize_request: SummarizeRequest):
     try:
         # Step 1: Extract video ID
         video_id = extract_video_id(summarize_request.youtube_url)
-        logger.info(f"Summarizing video {video_id} with tone '{summarize_request.tone}'")
+        logger.info(f"Summarizing video {video_id} with config '{summarize_request.generationConfig}'")
         
         # Step 2: Try to get transcript, fallback to video info
         transcript = None
@@ -609,7 +623,7 @@ async def summarize(request: Request, summarize_request: SummarizeRequest):
             meta_data = {
                 "success": True,
                 "video_id": video_id,
-                "tone": summarize_request.tone,
+                "tone": summarize_request.generationConfig.tone,
                 "source": "transcript" if transcript else "video_info"
             }
             if not transcript:
@@ -620,10 +634,10 @@ async def summarize(request: Request, summarize_request: SummarizeRequest):
             try:
                 # Decide which text to summarize
                 if transcript:
-                    stream = generate_summary_stream_with_gemini(transcript, summarize_request.tone)
+                    stream = generate_summary_stream_with_gemini(transcript, summarize_request.generationConfig)
                 else:
                     text_fallback = f"Video Title: {video_info['title']}\n\nDescription: {video_info['description']}"
-                    stream = generate_summary_stream_with_gemini(text_fallback, summarize_request.tone)
+                    stream = generate_summary_stream_with_gemini(text_fallback, summarize_request.generationConfig)
 
                 async for text_chunk in stream:
                     yield f"data: {json.dumps({'type': 'chunk', 'text': text_chunk})}\n\n"
