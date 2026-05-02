@@ -4,7 +4,7 @@ uvicorn==0.27.0
 python-dotenv==1.0.0
 
 # YouTube transcript extraction
-youtube-transcript-api==0.6.2
+youtube-transcript-api==1.2.4
 
 # HTTP requests
 httpx==0.26.0

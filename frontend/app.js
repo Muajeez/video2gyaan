@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyState   = document.getElementById('empty-state');
     const summaryEl    = document.getElementById('summary-content');
     const toast        = document.getElementById('toast');
+    const historyList  = document.getElementById('history-list');
 
     // --- State ---
     let currentTone    = 'Hook';
@@ -45,6 +46,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Marked.js ---
     marked.setOptions({ gfm: true, breaks: true });
+
+    // --- History ---
+    const MAX_HISTORY = 5;
+
+    function getHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('v2g-history')) || [];
+        } catch { return []; }
+    }
+
+    function saveToHistory(vid, title, summary, url) {
+        let h = getHistory();
+        // Remove existing to place it at the top
+        h = h.filter(x => x.vid !== vid);
+        h.unshift({ vid, title, summary, url });
+        if (h.length > MAX_HISTORY) h = h.slice(0, MAX_HISTORY);
+        localStorage.setItem('v2g-history', JSON.stringify(h));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const h = getHistory();
+        if (h.length === 0) {
+            historyList.innerHTML = '<li class="history-empty">No recent summaries</li>';
+            return;
+        }
+        
+        historyList.innerHTML = '';
+        h.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'history-item';
+            
+            const title = document.createElement('div');
+            title.className = 'history-title';
+            title.textContent = item.title || 'Unknown Title';
+            
+            const urlEl = document.createElement('div');
+            urlEl.className = 'history-url';
+            urlEl.textContent = item.url || '';
+            
+            li.appendChild(title);
+            li.appendChild(urlEl);
+            
+            li.addEventListener('click', () => {
+                urlInput.value = item.url;
+                currentVideoId = item.vid;
+                showPreview(item.vid);
+                render(item.summary);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+            
+            historyList.appendChild(li);
+        });
+    }
+
+    // Initial render
+    renderHistory();
 
     // --- Theme ---
     function initTheme() {
@@ -157,14 +215,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ youtube_url: url, tone: currentTone })
             });
-            const data = await res.json();
-            
-            if (res.ok) {
-                trackEvent('summary_completed', { video_id: currentVideoId, tone: currentTone });
-                render(data.summary || 'No summary.');
-            } else {
+
+            if (!res.ok) {
+                const data = await res.json();
                 trackEvent('summary_error', { video_id: currentVideoId, error: data.detail });
                 render(`**Error:** ${data.detail || 'Unknown error'}`);
+                return;
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let summaryText = "";
+            
+            // Prepare UI for streaming output
+            loadingEl.style.display = 'none';
+            emptyState.style.display = 'none';
+            summaryEl.style.display = 'block';
+            outputActs.style.display = 'flex';
+            summaryEl.innerHTML = '<span class="typing-cursor"></span>';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunkStr = decoder.decode(value, { stream: true });
+                const lines = chunkStr.split("\n");
+                
+                for (const line of lines) {
+                    if (line.startsWith("data: ")) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.type === 'chunk') {
+                                summaryText += data.text;
+                                summaryEl.innerHTML = marked.parse(summaryText);
+                            } else if (data.type === 'error') {
+                                summaryText += `\n\n**Error:** ${data.detail}`;
+                                summaryEl.innerHTML = marked.parse(summaryText);
+                            } else if (data.type === 'done') {
+                                trackEvent('summary_completed', { video_id: currentVideoId, tone: currentTone });
+                                saveToHistory(currentVideoId, videoTitle.textContent, summaryText, url);
+                            }
+                        } catch (e) {}
+                    }
+                }
             }
         } catch (e) {
             trackEvent('summary_error', { video_id: currentVideoId, error: 'Connection Error' });

@@ -12,13 +12,16 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+import json
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
+
+from prompts import TONE_PROMPTS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -78,7 +81,7 @@ def extract_video_id(url: str) -> str:
 def get_transcript(video_id: str) -> str:
     """Get transcript from YouTube video"""
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = YouTubeTranscriptApi().fetch(video_id)
         formatter = TextFormatter()
         return formatter.format_transcript(transcript)
     except Exception as e:
@@ -138,8 +141,8 @@ async def get_video_info(video_id: str) -> dict:
 MAX_TRANSCRIPT_CHARS = 120000
 
 
-async def generate_summary_with_gemini(transcript: str, tone: str) -> str:
-    """Generate summary using Gemini AI via API Key"""
+async def generate_summary_stream_with_gemini(transcript: str, tone: str):
+    """Generate summary using Gemini AI via API Key, yielding stream chunks"""
     if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=500,
@@ -151,72 +154,50 @@ async def generate_summary_with_gemini(transcript: str, tone: str) -> str:
         logger.warning(f"Transcript truncated from {len(transcript)} to {MAX_TRANSCRIPT_CHARS} chars")
         transcript = transcript[:MAX_TRANSCRIPT_CHARS] + "\n\n[Transcript truncated due to length]"
     
-    # Tone-specific prompts
-    tone_prompts = {
-        "Hook": """System Instruction:
-            You are an expert storyteller and content strategist. Your task is to transform the provided video transcript into a long-form narrative post (300–800 words).
-            Strict Structural Requirements:
-            The Opening: Start with a single, punchy question that addresses a deep pain point or curiosity found in the transcript.
-            The Narrative Bridge: Develop the content like a story. Instead of listing facts, describe a "journey of discovery" or a "conflict and resolution." Use short, rhythmic sentences to maintain momentum.
-            Character Growth: Each paragraph should pull the reader deeper, making them feel like they are "leveling up" their knowledge as they read.
-            The Final Twist: Near the end, introduce a "counter-intuitive" insight or a surprising "Plot Twist" from the transcript that goes against common wisdom.
-            Conclusion: End with a thought-provoking question or a "moral of the story" that forces the reader to reflect on their own life/work.""",
-
-        "Professional": """Create a professional, comprehensive summary suitable for business or academic use.
-        Structure the summary with:
-        - An executive overview (2-3 sentences)
-        - Key sections with bold headings covering each major topic discussed
-        - Important data points, statistics, or facts mentioned
-        - Key takeaways and actionable conclusions as bullet points
-        The summary should be thorough and cover ALL major topics discussed in the video.""",
-
-        "Compact": """Create a well-organized summary using bullet points grouped by topic.
-        Structure the summary with:
-        - A one-line overview of the video
-        - Bullet points grouped under bold topic headings for each major section
-        - Key facts, numbers, or quotes worth noting
-        Cover ALL major topics discussed in the video, even in compact form."""
-    }
-
     prompt = f"""
-You are an expert YouTube video summarizer. Based on the transcript below, create a DETAILED and COMPREHENSIVE summary.
-The video is long, so make sure to cover ALL major topics, arguments, and insights discussed throughout the entire video.
-Do NOT skip sections — the reader should get a thorough understanding of everything covered.
+You are an expert AI assistant. Based on the transcript/text below, perform the following task EXACTLY as instructed.
+Do NOT add any extra commentary, introduction, or summary unless explicitly asked for in the instructions.
 
-Tone: {tone}
-{tone_prompts.get(tone, tone_prompts['Professional'])}
+Instructions:
+{TONE_PROMPTS.get(tone, TONE_PROMPTS['Professional'])}
 
-Transcript:
+Transcript/Text:
 {transcript}
 
-Detailed Summary:
+Output:
 """
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 8192,
+        }
+    }
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "temperature": 0.7,
-                        "maxOutputTokens": 8192,
-                    }
-                },
-                headers={"Content-Type": "application/json"},
-                timeout=120.0
-            )
-            
-            if response.status_code != 200:
-                error_detail = response.json()
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Gemini API error: {error_detail}"
-                )
-            
-            result = response.json()
-            return result["candidates"][0]["content"]["parts"][0]["text"]
-            
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key={GEMINI_API_KEY}"
+            async with client.stream("POST", url, json=payload, headers={"Content-Type": "application/json"}, timeout=120.0) as response:
+                if response.status_code != 200:
+                    error_detail = await response.aread()
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Gemini API error: {error_detail.decode('utf-8')}"
+                    )
+                
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]
+                        if data_str == "[DONE]":
+                            continue
+                        try:
+                            chunk = json.loads(data_str)
+                            if "candidates" in chunk and chunk["candidates"] and "content" in chunk["candidates"][0]:
+                                text = chunk["candidates"][0]["content"]["parts"][0]["text"]
+                                yield text
+                        except Exception:
+                            pass
     except httpx.RequestError as e:
         raise HTTPException(
             status_code=500,
@@ -232,7 +213,7 @@ def root():
 @app.post("/summarize")
 @limiter.limit("5/minute")
 async def summarize(request: Request, summarize_request: SummarizeRequest):
-    """Summarize YouTube video"""
+    """Summarize YouTube video with Streaming"""
     try:
         # Step 1: Extract video ID
         video_id = extract_video_id(summarize_request.youtube_url)
@@ -246,43 +227,50 @@ async def summarize(request: Request, summarize_request: SummarizeRequest):
             transcript = await asyncio.to_thread(get_transcript, video_id)
         except Exception as e:
             logger.warning(f"Transcript unavailable for {video_id}: {e}")
-            # Transcript not available, try YouTube Data API as fallback
             if YOUTUBE_API_KEY:
                 try:
                     video_info = await get_video_info(video_id)
                 except Exception as fallback_err:
                     logger.error(f"Fallback video info also failed: {fallback_err}")
         
-        # Step 3: Generate summary with Gemini
-        if transcript:
-            summary = await generate_summary_with_gemini(transcript, summarize_request.tone)
-            return {
-                "success": True,
-                "video_id": video_id,
-                "summary": summary,
-                "tone": summarize_request.tone,
-                "source": "transcript"
-            }
-        elif video_info:
-            # Use video info (title + description) as fallback
-            summary = await generate_summary_with_gemini(
-                f"Video Title: {video_info['title']}\n\nDescription: {video_info['description']}",
-                summarize_request.tone
-            )
-            return {
-                "success": True,
-                "video_id": video_id,
-                "summary": summary,
-                "tone": summarize_request.tone,
-                "source": "video_info",
-                "note": "Full transcript unavailable. Summary based on video title and description."
-            }
-        else:
+        if not transcript and not video_info:
             raise HTTPException(
                 status_code=400,
                 detail="Could not fetch transcript or video info. The video may not have captions available."
             )
-        
+
+        async def event_generator():
+            # Send initial meta event
+            meta_data = {
+                "success": True,
+                "video_id": video_id,
+                "tone": summarize_request.tone,
+                "source": "transcript" if transcript else "video_info"
+            }
+            if not transcript:
+                meta_data["note"] = "Full transcript unavailable. Summary based on video title and description."
+            
+            yield f"data: {json.dumps({'type': 'meta', 'data': meta_data})}\n\n"
+            
+            try:
+                # Decide which text to summarize
+                if transcript:
+                    stream = generate_summary_stream_with_gemini(transcript, summarize_request.tone)
+                else:
+                    text_fallback = f"Video Title: {video_info['title']}\n\nDescription: {video_info['description']}"
+                    stream = generate_summary_stream_with_gemini(text_fallback, summarize_request.tone)
+
+                async for text_chunk in stream:
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': text_chunk})}\n\n"
+                    
+                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            except HTTPException as http_exc:
+                 yield f"data: {json.dumps({'type': 'error', 'detail': http_exc.detail})}\n\n"
+            except Exception as exc:
+                 yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
+            
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except HTTPException:
@@ -293,4 +281,4 @@ async def summarize(request: Request, summarize_request: SummarizeRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
