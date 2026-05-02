@@ -1,8 +1,3 @@
-"""
-YouTube Summarizer Backend
-Using FastAPI + Gemini AI (via Google AI Studio API Key)
-"""
-
 import os
 import re
 import logging
@@ -11,6 +6,7 @@ import asyncio
 import secrets
 import sqlite3
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from typing import Literal, Optional
 from fastapi import FastAPI, HTTPException, Request
@@ -19,9 +15,6 @@ from fastapi.staticfiles import StaticFiles
 import json
 from fastapi.responses import FileResponse, StreamingResponse, HTMLResponse
 from pydantic import BaseModel
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 
@@ -45,16 +38,30 @@ app = FastAPI(title="YouTube Summarizer API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Configure Rate Limiting
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+# ── Lightweight rate limiter (replaces slowapi — compatible with Python 3.14) ──
+# Tracks request timestamps per IP in a sliding window.
+_rate_store: dict[str, list] = defaultdict(list)
+
+def _check_rate_limit(request: Request, max_calls: int, window_seconds: int):
+    """Raise HTTP 429 if the caller exceeds max_calls within window_seconds."""
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    cutoff = now - window_seconds
+    timestamps = _rate_store[ip]
+    # Evict old timestamps
+    _rate_store[ip] = [t for t in timestamps if t > cutoff]
+    if len(_rate_store[ip]) >= max_calls:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Max {max_calls} requests per {window_seconds}s."
+        )
+    _rate_store[ip].append(now)
 
 # Mount frontend static files
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
@@ -252,9 +259,9 @@ def root():
 
 
 @app.post("/share")
-@limiter.limit("10/minute")
 async def create_share(request: Request, share_req: ShareRequest):
     """Save a summary to SQLite and return a shareable short ID"""
+    _check_rate_limit(request, max_calls=10, window_seconds=60)
     share_id = secrets.token_urlsafe(6)  # ~8 chars, URL-safe
     now = time.time()
 
@@ -569,9 +576,9 @@ def _share_html(share_id: str, entry: dict) -> str:
 
 
 @app.post("/summarize")
-@limiter.limit("5/minute")
 async def summarize(request: Request, summarize_request: SummarizeRequest):
     """Summarize YouTube video with Streaming"""
+    _check_rate_limit(request, max_calls=5, window_seconds=60)
     try:
         # Step 1: Extract video ID
         video_id = extract_video_id(summarize_request.youtube_url)

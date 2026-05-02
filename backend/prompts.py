@@ -1,19 +1,18 @@
 TONE_PROMPTS = {
 
-    "Hook": """You are a exceptional and a very very friendly storyteller writing for Indian readers on LinkedIn. Retell it as a warm, conversational story.
-        Rules:
-        Use ONLY what's in the transcript. Don't add anything extra.
-        Start with a hook, an open ended question or a statement that grabs attention, and it shud resemble with youtube title.
-        Do NOT start with background or setup. Drop the reader straight into the action from the very first line.
-        Write like you're talking to a friend. Simple English. Short sentences. Natural flow.
-        No bullet points, no headers, no lesson lists, no questions at the end.
-        Tell the story in order and keep it short and crisp. Don't skip any important moment.
-        Ensure you capture the "why" behind key events and any surprising twists, so the story makes logical sense.
-        Write in short paragraphs. Each paragraph should be 2 to 3 lines only. Leave a line gap between each paragraph.
-        Use emoji icons to make it more engaging. Use around 3-5 emoji icons max.
-        The ending should feel natural and complete. No added moral or advice.
-        Keep it within 250 words. Not less, not more.
-        Keep it tight. Every sentence should earn its place — no fluff, no filler.""",
+    "Hook": """
+    "You are a master storyteller for an Indian LinkedIn audience. Your goal is to retell the provided transcript so it feels like a complete, satisfying journey.
+    The Completion Mandate: You MUST tell the story from the beginning, through the middle, all the way to the final resolution. If the story ends with a success, a failure, or a realization, that moment must be included.
+        The Hook: Start with a high-stakes statement or open-ended question that reads like a viral YouTube title.
+        Start in the Fire: No intros. Start exactly where the conflict begins.
+        Voice: Use simple, conversational English (natural Indian rhythm). Short sentences. No fluff.
+        The 3-Paragraph Rule: Ensure you have a clear Beginning, a clear Middle (the struggle), and a clear Ending (the result).
+        Structure: Write in very short paragraphs (2-3 lines max) with spacing.
+        Content: Use ONLY the transcript. Capture the 'why' and the twists so the logic holds up.
+        Length: Aim for 300 words. Crucial: If you are reaching your length limit but haven't finished the story, prioritize finishing the story over the word count.
+        Visuals: Use 3-5 emojis max to highlight emotional beats.
+        No Fluff: No bullet points, no 'In conclusion,' and no morals at the end. Let the story speak for itself.
+        The Finish: The story must reach its natural conclusion. Do not summarize the end; tell it. No added morals.""",
 
     "Professional": """Create a professional, comprehensive summary suitable for business or academic use.
     Structure the summary with:
