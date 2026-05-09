@@ -427,38 +427,16 @@ body {
     overflow: hidden;
     transition: background 0.3s ease;
 }
-.drawer-toggle {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.drawer-header {
     padding: 14px 16px;
-    background: transparent;
-    border: none;
-    color: var(--text-2);
     font-size: 14px;
     font-weight: 600;
-    font-family: var(--font);
-    cursor: pointer;
-    transition: color 0.2s;
-}
-.drawer-toggle:hover { color: var(--text); }
-.drawer-toggle .chevron {
-    transition: transform 0.3s ease;
-}
-.drawer-toggle[aria-expanded="true"] .chevron {
-    transform: rotate(180deg);
-}
-.drawer-toggle[aria-expanded="true"] {
     color: var(--text);
     border-bottom: 1px solid var(--card-border);
 }
 .drawer-content {
-    display: none;
-    padding: 20px 16px;
-}
-.drawer-toggle[aria-expanded="true"] + .drawer-content {
     display: block;
+    padding: 20px 16px;
     animation: slide-down 0.2s ease-out forwards;
 }
 

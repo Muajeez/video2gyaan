@@ -18,8 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoTitle   = document.getElementById('video-title');
     const videoIdEl    = document.getElementById('video-id-display');
 
-    // Drawer Elements
-    const drawerToggle = document.getElementById('drawer-toggle');
+
     const selLanguage  = document.getElementById('sel-language');
     const chipTones    = document.querySelectorAll('#chip-tone .chip');
     const chipPlatforms = document.querySelectorAll('#chip-platform .chip');
@@ -146,12 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTheme();
 
-    // --- Drawer & Customization ---
-    drawerToggle.addEventListener('click', () => {
-        const expanded = drawerToggle.getAttribute('aria-expanded') === 'true';
-        drawerToggle.setAttribute('aria-expanded', !expanded);
-        trackEvent('drawer_toggled', { expanded: !expanded });
-    });
 
     selLanguage.addEventListener('change', (e) => {
         generationConfig.language = e.target.value;

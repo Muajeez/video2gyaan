@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 
-from prompts import TONE_PROMPTS
+from prompts import TONE_PROMPTS, PLATFORM_PROMPTS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -207,27 +207,39 @@ async def generate_summary_stream_with_gemini(transcript: str, config: Generatio
         logger.warning(f"Transcript truncated from {len(transcript)} to {MAX_TRANSCRIPT_CHARS} chars")
         transcript = transcript[:MAX_TRANSCRIPT_CHARS] + "\n\n[Transcript truncated due to length]"
     
-    # Map the front-end tone to a base tone in TONE_PROMPTS
+    # Map the front-end tone chip value to a TONE_PROMPTS key
     base_tone = "Professional"
-    if "Hook" in config.tone or "Viral" in config.tone:
+    tone_lower = config.tone.lower()
+    if "master" in tone_lower or "storyteller" in tone_lower:
+        base_tone = "MasterStoryteller"
+    elif "hook" in tone_lower or "viral" in tone_lower:
         base_tone = "Hook"
-    elif "Compact" in config.tone:
+    elif "educational" in tone_lower:
+        base_tone = "Educational"
+    elif "funny" in tone_lower or "snarky" in tone_lower:
+        base_tone = "Funny"
+    elif "compact" in tone_lower:
         base_tone = "Compact"
-        
-    prompt = f"""
-Act as a {config.platform} expert. Summarize this video in {config.tone} tone using {config.language}.
 
-You are an expert AI assistant. Based on the transcript/text below, perform the following task EXACTLY as instructed.
-Do NOT add any extra commentary, introduction, or summary unless explicitly asked for in the instructions.
+    # Resolve platform formatting instruction
+    platform_key = config.platform  # e.g. "LinkedIn", "Twitter/X", "YouTube Script", "Summary"
+    platform_instruction = PLATFORM_PROMPTS.get(platform_key, "")
 
-Instructions:
-{TONE_PROMPTS.get(base_tone, TONE_PROMPTS['Professional'])}
+    platform_section = f"\n\nPLATFORM / FORMAT INSTRUCTIONS:\n{platform_instruction}" if platform_instruction else ""
+
+    prompt = f"""You are an expert AI content creator. Your task is to process the following video transcript.
+
+Language: Respond ONLY in {config.language}. Do not switch languages.
+
+TONE INSTRUCTIONS:
+{TONE_PROMPTS.get(base_tone, TONE_PROMPTS['Professional'])}{platform_section}
+
+IMPORTANT: If both Tone and Platform instructions are given, satisfy BOTH — let the tone shape your writing style while the platform instructions shape your structure and format.
 
 Transcript/Text:
 {transcript}
 
-Output:
-"""
+Output:"""
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
